@@ -30,3 +30,11 @@ pixi run snakemake --cores <N>
 
 - `results/PDXE_MultiAssayExperiment.rds`
 - `results/Xeva_PDXE.rds`
+
+## Run QC notebook
+
+There is a pixi task setup to quickly knit the QC notebook to HTML in `qc/`.
+
+```bash
+pixi run qc
+```

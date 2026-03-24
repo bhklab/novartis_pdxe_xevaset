@@ -1,0 +1,516 @@
+---
+title: "Exploring the Novartis PDXE XevaSet with Xeva"
+date: "`r format(Sys.Date(), '%Y-%m-%d')`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+---
+
+This document introduces the curated Novartis PDXE `XevaSet` making use of analysis supported by the `Xeva` R package.
+
+## Setup
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 8,
+  fig.height = 5
+)
+
+suppressPackageStartupMessages({
+  library(Xeva)
+  library(Biobase)
+  library(dplyr)
+  library(tidyr)
+  library(ggplot2)
+  library(knitr)
+  library(scales)
+  library(patchwork)
+})
+
+theme_set(theme_minimal(base_size = 12))
+```
+
+## Load the dataset
+
+The curated object is stored as an `RDS` file in the `results/` directory.
+
+```{r load-data}
+xeva_path <- file.path("results", "Xeva_PDXE.rds")
+
+pdxe <- readRDS(xeva_path)
+pdxe
+```
+
+The `XevaSet` bundles together experimental design, tumor growth measurements, response summaries, and molecular profiles. Similar to a `PharmacoSet`, it is designed so that the same object can support both simple data access and higher-level analyses such as response classification and biomarker discovery.
+
+```{r dataset-overview}
+model_df <- modelInfo(pdxe)
+batch_ids <- batchInfo(pdxe)
+
+overview_tbl <- tibble(
+  quantity = c("Models", "Patients", "Batches", "Drugs", "Tissues"),
+  value = c(
+    nrow(model_df),
+    n_distinct(model_df$patient.id),
+    length(batch_ids),
+    n_distinct(model_df$drug),
+    n_distinct(model_df$tissue)
+  )
+)
+
+kable(overview_tbl)
+```
+
+This version of the dataset contains `r nrow(model_df)` model-level records across `r n_distinct(model_df$patient.id)` patients and `r length(batch_ids)` treatment-control batches. The six disease groups represented here are `r paste(sort(unique(model_df$tissue)), collapse = ", ")`.
+
+## What is included in the object?
+
+Below is a summary of `XevaSet` core accessors.
+
+```{r object-contents}
+contents_tbl <- tibble(
+  component = c(
+    "Model metadata",
+    "Batch definitions",
+    "Individual growth curves",
+    "Model-level response summaries",
+    "Batch-level response summaries",
+    "Molecular profiles"
+  ),
+  access_pattern = c(
+    "modelInfo(pdxe)",
+    "batchInfo(pdxe)",
+    "getExperiment(pdxe, model.id = ...)",
+    "slot(pdxe, 'sensitivity')$model",
+    "slot(pdxe, 'sensitivity')$batch",
+    "getMolecularProfiles(pdxe, data.type = ...)"
+  )
+)
+
+kable(contents_tbl)
+```
+
+### Model metadata
+
+```{r model-metadata-head}
+kable(head(model_df, 8))
+```
+
+Each row corresponds to a model measured in a particular treatment context. The key columns are:
+
+* `model.id`: the unique model identifier; a concatenation of patient and drug identifiers in this case.
+* `patient.id`: the patient-level identifier that ties related models together.
+* `drug`: the treatment assigned to that model, with `untreated` used for control arms.
+* `tissue`, `tissue.name`, and `oncotree.mainType`: disease annotations that support stratified analysis.
+
+### Molecular assays
+
+```{r molecular-assays}
+rna <- getMolecularProfiles(pdxe, data.type = "RNASeq")
+cnv <- getMolecularProfiles(pdxe, data.type = "cnv")
+mut <- getMolecularProfiles(pdxe, data.type = "mutation")
+
+assay_tbl <- tibble(
+  modality = c("RNASeq", "cnv", "mutation"),
+  features = c(nrow(exprs(rna)), nrow(exprs(cnv)), nrow(exprs(mut))),
+  samples = c(ncol(exprs(rna)), ncol(exprs(cnv)), ncol(exprs(mut))),
+  patient_metadata = c(
+    paste(colnames(pData(rna)), collapse = ", "),
+    paste(colnames(pData(cnv)), collapse = ", "),
+    paste(colnames(pData(mut)), collapse = ", ")
+  )
+)
+
+kable(assay_tbl)
+```
+
+These assays are stored as `ExpressionSet` objects. The accompanying sample metadata links each molecular profile back to patient, model, tissue, and response annotations where available.
+
+## The model and treatment landscape
+
+Before plotting individual experiments, it helps to understand the overall composition of the dataset.
+
+### Tissue distribution
+
+```{r tissue-summary}
+tissue_summary <- model_df |>
+  count(tissue, name = "models") |>
+  left_join(
+    model_df |>
+      distinct(tissue, patient.id) |>
+      count(tissue, name = "patients"),
+    by = "tissue"
+  ) |>
+  arrange(desc(models))
+
+kable(tissue_summary)
+```
+
+```{r tissue-barplot, fig.height=4}
+ggplot(
+  tissue_summary,
+  aes(x = reorder(tissue, models), y = models, fill = tissue)
+) +
+  geom_col(show.legend = FALSE) +
+  labs(
+    title = "Number of model records by tissue",
+    x = "Tissue",
+    y = "Number of models"
+  ) +
+  coord_flip()
+```
+
+Gastric cancer and colorectal cancer are the largest cohorts in this object, while melanoma is the smallest of the six disease groups. The patient counts are smaller than the model counts because each patient can contribute multiple models across drugs or arms.
+
+### Most frequently represented treatments
+
+```{r drug-summary}
+drug_summary <- model_df |>
+  filter(drug != "untreated") |>
+  count(drug, name = "models", sort = TRUE) |>
+  slice_head(n = 15)
+
+kable(drug_summary)
+```
+
+```{r drug-barplot, fig.height=5}
+ggplot(drug_summary, aes(x = reorder(drug, models), y = models)) +
+  geom_col(fill = "#3b82b8") +
+  labs(
+    title = "Top 15 treatments by number of model records",
+    x = "Drug",
+    y = "Number of treated models"
+  ) +
+  coord_flip()
+```
+
+This plot is useful for quickly identifying the compounds with the broadest coverage in the study. Here, `LEE011`, `binimetinib`, `BKM120`, `CLR457`, and `BYL719` are among the most frequently profiled treatments.
+
+## Looking at individual experiments
+
+We use `Xeva` to move from the dataset overview down to a single patient-drug comparison. The example below uses the batch `X-010.binimetinib`.
+
+```{r batch-example}
+sample_batch <- "X-010.binimetinib"
+sample_patient <- "X-010"
+sample_treatment_model <- "X.010.biib"
+
+batch_info <- batchInfo(pdxe, batch = sample_batch)[[1]]
+batch_tbl <- tibble(
+  field = c("Batch", "Control arm", "Treatment arm"),
+  value = c(batch_info$batch.name, batch_info$control, batch_info$treatment)
+)
+
+kable(batch_tbl)
+```
+
+The batch definition shows how `Xeva` pairs an untreated control arm with a treatment arm for the same patient. This is the basic unit used for many downstream response calculations.
+
+```{r experiment-table}
+experiment_df <- getExperiment(pdxe, model.id = sample_treatment_model)
+kable(head(experiment_df, 10))
+```
+
+This table is the raw time series behind the growth-curve plots: tumor volume is tracked over time, along with body weight and normalized volume.
+
+### Batch-level growth curves
+
+```{r plot-batch-growth, fig.height=5}
+plotPDX(
+  pdxe,
+  batch = sample_batch,
+  vol.normal = TRUE,
+  max.time = 40
+)
+```
+
+The normalized plot starts all models on a comparable scale, emphasizing the change in growth between treatment and control. Curves that stay lower indicate slower growth under treatment relative to the untreated arm.
+
+### Patient-level growth curves
+
+```{r plot-patient-growth, fig.height=5}
+plotPDX(
+  pdxe,
+  patient.id = sample_patient,
+  drug = "binimetinib",
+  control.name = "untreated"
+)
+```
+
+This patient-level call is an alternative for when you have the patient and drug of interest but not the batch name.
+
+## Response measures included in the dataset
+
+The curated object already contains a set of precomputed response summaries. These can be used directly, or recomputed with `summarizeResponse()` and related functions when needed.
+
+### Model-level response summaries
+
+```{r model-response-availability}
+model_metrics <- methods::slot(pdxe, "sensitivity")$model
+
+model_metric_summary <- tibble(
+  metric = colnames(model_metrics)[-1],
+  available_models = colSums(!is.na(model_metrics[-1])),
+  pct_models = round(100 * colMeans(!is.na(model_metrics[-1])), 1)
+)
+
+kable(model_metric_summary)
+```
+
+### Batch-level response summaries
+
+```{r batch-response-availability}
+batch_metrics <- methods::slot(pdxe, "sensitivity")$batch
+
+batch_metric_summary <- tibble(
+  metric = colnames(batch_metrics)[-1],
+  available_batches = colSums(!is.na(batch_metrics[-1])),
+  pct_batches = round(100 * colMeans(!is.na(batch_metrics[-1])), 1)
+)
+
+kable(batch_metric_summary)
+```
+
+The response summaries are already broadly populated, and the dataset is ready to use for both descriptive and inferential analyses.
+
+### Distribution of selected response metrics
+
+```{r response-distributions, fig.height=7}
+auc_df <- model_metrics |>
+  select(AUC) |>
+  filter(!is.na(AUC), AUC > 0)
+
+slope_df <- model_metrics |>
+  select(slope) |>
+  filter(!is.na(slope), between(slope, -90, 90))
+
+bar_df <- model_metrics |>
+  select(best.average.response) |>
+  filter(!is.na(best.average.response), best.average.response > -100)
+
+base_hist_theme <- theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(face = "bold", size = 12),
+    axis.title.x = element_text(size = 11),
+    axis.title.y = element_text(size = 11),
+    plot.margin = margin(5.5, 10, 5.5, 10)
+  )
+
+p_auc <- ggplot(auc_df, aes(x = AUC)) +
+  geom_histogram(bins = 50, fill = "#3b82b8", color = "white") +
+  coord_cartesian(ylim = c(0, 1500)) +
+  scale_x_continuous(
+    breaks = seq(0, 140000, by = 40000),
+    labels = label_number(accuracy = 1, big.mark = ",")
+  ) +
+  labs(
+    title = "AUC",
+    x = "AUC",
+    y = "Number of models"
+  ) +
+  base_hist_theme
+
+p_slope <- ggplot(slope_df, aes(x = slope)) +
+  geom_histogram(bins = 50, fill = "#3b82b8", color = "white") +
+  coord_cartesian(ylim = c(0, 1500), xlim = c(-90, 90)) +
+  scale_x_continuous(
+    breaks = seq(-90, 90, by = 45),
+    labels = label_number(accuracy = 1)
+  ) +
+  labs(
+    title = "Slope",
+    x = "Angle (degrees)",
+    y = NULL
+  ) +
+  base_hist_theme
+
+p_bar <- ggplot(bar_df, aes(x = best.average.response)) +
+  geom_histogram(bins = 50, fill = "#3b82b8", color = "white") +
+  coord_cartesian(ylim = c(0, 1500)) +
+  scale_x_continuous(
+    breaks = seq(-100, 300, by = 50),
+    labels = label_number(accuracy = 1)
+  ) +
+  labs(
+    title = "Best average response",
+    x = "Percent change from baseline",
+    y = NULL
+  ) +
+  base_hist_theme
+
+(p_auc + plot_spacer() + p_slope + plot_spacer() + p_bar) +
+  plot_layout(widths = c(1, 0.12, 1, 0.12, 1))
+```
+
+Note that these metrics are on different scales and summarize different aspects of response, so they should be interpreted within each panel rather than compared directly across panels.
+
+- `AUC` is the raw area under the tumor volume-versus-time curve, roughly `volume x time`. Higher values indicate greater cumulative tumor burden over the course of the experiment, while lower values indicate slower growth or stronger suppression.
+- `best.average.response` is the lowest running average of percent change in tumor volume from baseline. Negative values indicate shrinkage, `-50` means the tumor volume halved, `0` means no net change from baseline, and `100` means the tumor volume doubled.
+- `slope` is the angle, in degrees, of the fitted growth line for an individual model. Values near `0` indicate little net growth, positive values indicate growth, negative values indicate shrinkage, and values closer to `90` indicate steeper growth.
+
+A large concentration of values near 90 degrees is expected for this metric and does not mean these models all have identical growth behavior. In `Xeva`, `slope` is reported as the angle of a fitted growth line rather than as a raw slope coefficient. Because the angle is computed with an arctangent transform, very fast positive growth rates are compressed toward 90 degrees. As a result, this metric has limited resolution among rapidly growing models: values near 90 should be interpreted as “very steep growth” rather than as meaningfully distinct quantitative differences.
+
+## Summarizing response with mRECIST
+
+Below we classify response using mRECIST and display the result as a heatmap across patients and treatments.
+
+```{r brca-mrecist-table}
+brca_mrecist <- summarizeResponse(
+  pdxe,
+  response.measure = "mRECIST",
+  group.by = "patient.id",
+  tissue = "BRCA"
+)
+
+dim(brca_mrecist)
+```
+
+```{r brca-mrecist-preview}
+# Preview up to 8x8
+kable(
+  brca_mrecist[seq_len(min(8, nrow(brca_mrecist))),
+    seq_len(min(8, ncol(brca_mrecist))),
+    drop = FALSE
+  ]
+)
+```
+
+The matrix is organized with drugs in rows and patients in columns. Entries such as `CR`, `PR`, `SD`, and `PD` summarize the observed treatment outcome for each patient-drug combination.
+
+```{r brca-mrecist-plot, fig.width=12, fig.height=7}
+plotmRECIST(
+  brca_mrecist,
+  control.name = "untreated",
+  name = "Breast cancer",
+  sort = FALSE
+)
+```
+
+This style of plot is especially helpful for scanning the dataset for drugs with broad activity versus drugs that only benefit specific patient subsets.
+
+## Waterfall plots
+
+Waterfall plots rank models from strongest response to weakest response for a given treatment.
+
+```{r simple-waterfall, fig.width=11, fig.height=5}
+waterfall(
+  pdxe,
+  drug = "binimetinib",
+  res.measure = "best.average.response"
+)
+```
+
+Lower `best.average.response` values correspond to stronger inhibition or shrinkage, while higher values reflect continued growth. This allows us to compare treatment sensitivity across many models at once.
+
+### A publication-style mutation-annotated waterfall
+
+The next focused waterfall plot shows melanoma models treated with `binimetinib` colored by `NRAS` mutation status.
+
+```{r nras-status}
+cm_mut <- summarizeMolecularProfiles(
+  pdxe,
+  drug = "binimetinib",
+  mDataType = "mutation",
+  tissue = "CM"
+)
+
+nras_status <- ifelse(
+  as.numeric(exprs(cm_mut)["NRAS", ]) != 0,
+  "Mutation", "Wild type"
+)
+names(nras_status) <- sampleNames(cm_mut)
+
+nras_bar <- tibble(
+  NRAS = factor(nras_status, levels = c("Wild type", "Mutation")),
+  best_average_response = pData(cm_mut)$best.average.response
+)
+
+kable(as.data.frame(table(nras_status)))
+```
+
+```{r nras-waterfall, fig.width=11, fig.height=5}
+waterfall(
+  pdxe,
+  drug = "binimetinib",
+  res.measure = "best.average.response",
+  model.id = names(nras_status),
+  model.type = nras_status,
+  type.color = list(
+    "Wild type" = "#00468BFF",
+    "Mutation" = "#ED0000FF"
+  ),
+  legend.name = "NRAS",
+  title = "Binimetinib response in CM models, colored by NRAS status",
+  yname = "Best average response"
+)
+```
+
+```{r nras-wilcox}
+wilcox.test(best_average_response ~ NRAS, data = nras_bar, exact = FALSE)
+```
+
+This combination of summary table, waterfall plot, and simple Wilcoxon test is a good first pass at checking whether a molecular annotation tracks with response in a drug-specific subset.
+
+## A small gene-drug association example
+
+The `drugSensitivitySig()` function can be used to associate molecular features with response. For example, the panel below tests expression of ten genes that are plausible candidates for signaling and response biology.
+
+```{r gene-drug-association}
+candidate_genes <- c(
+  "AKT1", "BRAF", "CDK13", "ERBB2", "ESR1",
+  "FGFR2", "MAPKAPK2", "NRAS", "PIK3CA", "TP53"
+)
+
+gene_assoc <- drugSensitivitySig(
+  object = pdxe,
+  drug = "binimetinib",
+  mDataType = "RNASeq",
+  features = candidate_genes,
+  sensitivity.measure = "best.average.response",
+  fit = "lm"
+) |>
+  arrange(pvalue)
+
+kable(gene_assoc)
+```
+
+The `estimate` column gives the direction of association. Because lower `best.average.response` indicates stronger response, a negative estimate suggests that higher expression is associated with greater sensitivity, while a positive estimate suggests the opposite.
+
+Among this small panel, `r gene_assoc$feature[[1]]` has the strongest nominal association with `binimetinib` response.
+
+```{r akt1-scatter, fig.height=5}
+rna_binimetinib <- summarizeMolecularProfiles(
+  pdxe,
+  drug = "binimetinib",
+  mDataType = "RNASeq"
+)
+
+akt1_df <- tibble(
+  model_id = sampleNames(rna_binimetinib),
+  expression = as.numeric(exprs(rna_binimetinib)["AKT1", ]),
+  best_average_response = pData(rna_binimetinib)$best.average.response
+) |>
+  filter(!is.na(expression), !is.na(best_average_response))
+
+ggplot(akt1_df, aes(x = expression, y = best_average_response)) +
+  geom_point(alpha = 0.7, color = "#3b82b8") +
+  geom_smooth(method = "lm", se = FALSE, color = "#d55e00") +
+  labs(
+    title = "AKT1 expression versus binimetinib response",
+    x = "AKT1 RNA-seq expression",
+    y = "Best average response"
+  )
+```
+
+For a real biomarker analysis you would usually expand the feature set, consider tissue stratification, and interpret results using multiple-testing correction. Even so, this example shows how `Xeva` links molecular profiles to treatment response within the same object.
+
+## Session info
+
+```{r session-info}
+sessionInfo()
+```
