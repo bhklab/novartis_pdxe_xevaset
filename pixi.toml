@@ -1,0 +1,17 @@
+[workspace]
+authors = ["Michael Tran <michaelcao-anh.tran@uhn.ca>"]
+channels = ["conda-forge", "bioconda"]
+name = "Novartis_PDXE"
+platforms = ["osx-arm64"]
+version = "0.1.0"
+
+[dependencies]
+r-essentials = ">=4.5,<5"
+python = ">=3.13.12,<3.14"
+snakemake = ">=9.17.2,<10"
+r-biocmanager = ">=1.30.27,<2"
+r-remotes = ">=2.5.0,<3"
+r-fs = ">=1.6.6,<2"
+
+[tasks]
+setup = "Rscript workflow/scripts/setup.R"

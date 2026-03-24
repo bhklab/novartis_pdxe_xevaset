@@ -1,0 +1,11 @@
+.pixi/*
+!.pixi/config.toml
+.ruff_cache
+.snakemake
+metadata/
+logs/
+data/procdata/
+data/rawdata/
+results/
+scratch/
+**__pycache__/

@@ -1,0 +1,63 @@
+name: PDXE
+description: Curation of the Novartis PDXE XevaSet
+
+directories:
+  rawdata: data/rawdata
+  procdata: data/procdata
+  results: results
+  logs: logs
+
+metadata:
+  supplementary:
+    url: https://static-content.springer.com/esm/art%3A10.1038%2Fnm.3954/MediaObjects/41591_2015_BFnm3954_MOESM10_ESM.xlsx
+    file: 41591_2015_BFnm3954_MOESM10_ESM.xlsx
+    sheets:
+      rnaseq:
+        name: RNAseq_fpkm
+        file: RNAseq_fpkm.tsv
+      cnv:
+        name: copy number
+        file: copy_number.tsv
+      mutation:
+        name: pdxe_mut_and_cn2
+        file: pdxe_mut_and_cn2.tsv
+      pct_raw:
+        name: PCT raw data
+        file: pct_raw_data.tsv
+      pct_curve_metrics:
+        name: PCT curve metrics
+        file: pct_curve_metrics.tsv
+  tissue_name_map:
+    GC: Gastric Cancer
+    CRC: Colorectal Cancer
+    PDAC: Pancreatic Ductal Carcinoma
+    BRCA: Breast Cancer
+    NSCLC: Non-small Cell Lung Carcinoma
+    CM: Cutaneous Melanoma
+
+treatmentResponse:
+  control_drug: untreated
+
+molecularProfiles:
+  rnaseq:
+    datatype: RNASeq
+    assay_name: exprs
+  cnv:
+    datatype: cnv
+    assay_name: exprs
+  mutation:
+    datatype: mutation
+    assay_name: exprs
+  microarray:
+    raw_tar_url: https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE78806&format=file
+    raw_tar_file: GSE78806_RAW.tar
+    sdrf_url: https://www.ebi.ac.uk/biostudies/files/E-GEOD-78806/E-GEOD-78806.sdrf.txt
+    sdrf_file: E-GEOD-78806.sdrf.txt
+    geo_accession: GSE78806
+    brainarray:
+      version: 25.0.0
+      organism: hs
+      annotation_source: ensg
+    ensembl:
+      dataset: hsapiens_gene_ensembl
+      host: https://grch37.ensembl.org
