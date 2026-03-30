@@ -2,7 +2,6 @@
 !.pixi/config.toml
 .ruff_cache
 .snakemake
-metadata/
 logs/
 data/procdata/
 data/rawdata/

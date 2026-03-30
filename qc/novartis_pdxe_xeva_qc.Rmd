@@ -50,6 +50,8 @@ The `XevaSet` bundles together experimental design, tumor growth measurements, r
 ```{r dataset-overview}
 model_df <- modelInfo(pdxe)
 batch_ids <- batchInfo(pdxe)
+treatment_df <- methods::slot(pdxe, "drug") |>
+  as_tibble()
 
 overview_tbl <- tibble(
   quantity = c("Models", "Patients", "Batches", "Drugs", "Tissues"),
@@ -58,14 +60,14 @@ overview_tbl <- tibble(
     n_distinct(model_df$patient.id),
     length(batch_ids),
     n_distinct(model_df$drug),
-    n_distinct(model_df$tissue)
+    n_distinct(model_df$tissue.name)
   )
 )
 
 kable(overview_tbl)
 ```
 
-This version of the dataset contains `r nrow(model_df)` model-level records across `r n_distinct(model_df$patient.id)` patients and `r length(batch_ids)` treatment-control batches. The six disease groups represented here are `r paste(sort(unique(model_df$tissue)), collapse = ", ")`.
+This version of the dataset contains `r nrow(model_df)` model-level records across `r n_distinct(model_df$patient.id)` patients and `r length(batch_ids)` treatment-control batches. The six disease groups represented here are `r paste(sort(unique(model_df$tissue.name)), collapse = ", ")`.
 
 ## What is included in the object?
 
@@ -105,7 +107,38 @@ Each row corresponds to a model measured in a particular treatment context. The 
 * `model.id`: the unique model identifier; a concatenation of patient and drug identifiers in this case.
 * `patient.id`: the patient-level identifier that ties related models together.
 * `drug`: the treatment assigned to that model, with `untreated` used for control arms.
-* `tissue`, `tissue.name`, and `oncotree.mainType`: disease annotations that support stratified analysis.
+* `tissue` and `tissue.name`: the study-provided short code and full disease label.
+* `oncotree.code`, `oncotree.name`, and `oncotree.mainType`: the matched OncoTree branch code, branch name, and main cancer type.
+* `oncotree.nciTissueCode` and `oncotree.umlsCode`: stable ontology identifiers carried through from the OncoTree branch annotation.
+
+### Treatment metadata
+
+```{r treatment-metadata-head}
+kable(
+  treatment_df |>
+    transmute(
+      drug.id = drug.id,
+      standardized.name = dplyr::coalesce(
+        `annotationgx.standardizedName`,
+        standard.name,
+        `pubchem.Title`,
+        drug.id
+      ),
+      `pubchem.CID` = `pubchem.CID`,
+      `chembl.target_pref_name` = dplyr::coalesce(
+        `chembl.target_pref_name`,
+        NA_character_
+      ),
+      `chembl.mechanism_of_action` = dplyr::coalesce(
+        `chembl.mechanism_of_action`,
+        NA_character_
+      )
+    ) |>
+    slice_head(n = 8)
+)
+```
+
+The drug slot keeps both the study IDs and AnnotationGx-enriched metadata, including standardized treatment names, PubChem identifiers, and ChEMBL target annotations.
 
 ### Molecular assays
 
@@ -138,12 +171,12 @@ Before plotting individual experiments, it helps to understand the overall compo
 
 ```{r tissue-summary}
 tissue_summary <- model_df |>
-  count(tissue, name = "models") |>
+  count(tissue.name, name = "models") |>
   left_join(
     model_df |>
-      distinct(tissue, patient.id) |>
-      count(tissue, name = "patients"),
-    by = "tissue"
+      distinct(tissue.name, patient.id) |>
+      count(tissue.name, name = "patients"),
+    by = "tissue.name"
   ) |>
   arrange(desc(models))
 
@@ -153,12 +186,12 @@ kable(tissue_summary)
 ```{r tissue-barplot, fig.height=4}
 ggplot(
   tissue_summary,
-  aes(x = reorder(tissue, models), y = models, fill = tissue)
+  aes(x = reorder(tissue.name, models), y = models, fill = tissue.name)
 ) +
   geom_col(show.legend = FALSE) +
   labs(
-    title = "Number of model records by tissue",
-    x = "Tissue",
+    title = "Number of model records by disease group",
+    x = "Disease group",
     y = "Number of models"
   ) +
   coord_flip()
@@ -172,23 +205,47 @@ Gastric cancer and colorectal cancer are the largest cohorts in this object, whi
 drug_summary <- model_df |>
   filter(drug != "untreated") |>
   count(drug, name = "models", sort = TRUE) |>
+  left_join(
+    treatment_df |>
+      transmute(
+        drug = drug.id,
+        drug.label = dplyr::coalesce(
+          `annotationgx.standardizedName`,
+          standard.name,
+          `pubchem.Title`,
+          drug.id
+        ),
+        `chembl.target_pref_name` = `chembl.target_pref_name`
+      ),
+    by = "drug"
+  ) |>
+  mutate(
+    drug.label = dplyr::coalesce(drug.label, drug),
+    `chembl.target_pref_name` = dplyr::coalesce(
+      `chembl.target_pref_name`,
+      NA_character_
+    )
+  ) |>
   slice_head(n = 15)
 
-kable(drug_summary)
+kable(
+  drug_summary |>
+    select(drug.label, drug, models, `chembl.target_pref_name`)
+)
 ```
 
 ```{r drug-barplot, fig.height=5}
-ggplot(drug_summary, aes(x = reorder(drug, models), y = models)) +
+ggplot(drug_summary, aes(x = reorder(drug.label, models), y = models)) +
   geom_col(fill = "#3b82b8") +
   labs(
     title = "Top 15 treatments by number of model records",
-    x = "Drug",
+    x = "Treatment (standardized name)",
     y = "Number of treated models"
   ) +
   coord_flip()
 ```
 
-This plot is useful for quickly identifying the compounds with the broadest coverage in the study. Here, `LEE011`, `binimetinib`, `BKM120`, `CLR457`, and `BYL719` are among the most frequently profiled treatments.
+This plot is useful for quickly identifying the compounds with the broadest coverage in the study. Here, Ribociclib Succinate (`LEE011`), binimetinib, Buparlisib (`BKM120`), `CLR457`, and Alpelisib (`BYL719`) are among the most frequently profiled treatments.
 
 ## Looking at individual experiments
 

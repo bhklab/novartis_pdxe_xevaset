@@ -1,6 +1,3 @@
-name: PDXE
-description: Curation of the Novartis PDXE XevaSet
-
 directories:
   rawdata: data/rawdata
   procdata: data/procdata
@@ -27,37 +24,13 @@ metadata:
       pct_curve_metrics:
         name: PCT curve metrics
         file: pct_curve_metrics.tsv
-  tissue_name_map:
-    GC: Gastric Cancer
-    CRC: Colorectal Cancer
-    PDAC: Pancreatic Ductal Carcinoma
-    BRCA: Breast Cancer
-    NSCLC: Non-small Cell Lung Carcinoma
-    CM: Cutaneous Melanoma
+  oncotree_tissue_code_map:
+    GC: STOMACH
+    CRC: BOWEL
+    PDAC: PANCREAS
+    BRCA: BREAST
+    NSCLC: LUNG
+    CM: MEL
 
 treatmentResponse:
   control_drug: untreated
-
-molecularProfiles:
-  rnaseq:
-    datatype: RNASeq
-    assay_name: exprs
-  cnv:
-    datatype: cnv
-    assay_name: exprs
-  mutation:
-    datatype: mutation
-    assay_name: exprs
-  microarray:
-    raw_tar_url: https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE78806&format=file
-    raw_tar_file: GSE78806_RAW.tar
-    sdrf_url: https://www.ebi.ac.uk/biostudies/files/E-GEOD-78806/E-GEOD-78806.sdrf.txt
-    sdrf_file: E-GEOD-78806.sdrf.txt
-    geo_accession: GSE78806
-    brainarray:
-      version: 25.0.0
-      organism: hs
-      annotation_source: ensg
-    ensembl:
-      dataset: hsapiens_gene_ensembl
-      host: https://grch37.ensembl.org
