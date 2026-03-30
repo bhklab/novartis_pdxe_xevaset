@@ -20,6 +20,7 @@ include: "workflow/rules/treatmentResponse.smk"
 rule all:
     input:
         xeva=results / "Xeva_PDXE.rds",
+        xeva_tsv=results / "Xeva_PDXE_tsv",
     localrule: True
 
 
@@ -51,6 +52,7 @@ rule build_XevaSet:
         modToBiobaseMap=rules.build_modToBiobaseMap.output.modToBiobaseMap,
     output:
         xeva=results / "Xeva_PDXE.rds",
+        tsvDir=directory(results / "Xeva_PDXE_tsv"),
     log:
         logs / "build_XevaSet.log",
     script:

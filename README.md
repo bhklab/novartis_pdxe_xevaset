@@ -9,7 +9,7 @@ The paper supplemental workbook is the only raw data source used by the workflow
 - Workbook extraction is separated from downstream curation. Relevant sheets are first materialized as tabular intermediates under `data/procdata/supplementary/`, then normalized into annotated model, sample, treatment, experiment, and curve-metric tables.
 - RNA-seq, CNV, and mutation data are processed independently into modality-specific `SummarizedExperiment` objects. That keeps assay-specific logic isolated while giving the later integration steps a consistent interface.
 - The pipeline builds treatment-response tables and experiment-design metadata explicitly before final assembly. This makes the `XevaSet` construction step easier to inspect and debug because key inputs already exist as named intermediate artifacts.
-- Final outputs are layered: `results/PDXE_MultiAssayExperiment.rds` contains the harmonized molecular assays, and `results/Xeva_PDXE.rds` adds the metadata and treatment-response structures required for downstream `Xeva` analysis.
+- Final outputs are layered: `results/PDXE_MultiAssayExperiment.rds` contains the harmonized molecular assays, `results/Xeva_PDXE.rds` adds the metadata and treatment-response structures required for downstream `Xeva` analysis, and `results/Xeva_PDXE_tsv/` mirrors the final `XevaSet` contents as TSV exports for non-R workflows.
 
 ## Setup
 
@@ -30,6 +30,7 @@ pixi run snakemake --cores <N>
 
 - `results/PDXE_MultiAssayExperiment.rds`
 - `results/Xeva_PDXE.rds`
+- `results/Xeva_PDXE_tsv/`
 
 ## Run QC notebook
 
