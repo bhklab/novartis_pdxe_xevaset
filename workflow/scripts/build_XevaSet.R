@@ -223,7 +223,7 @@ set_batch_metric <- function(
   vol_normal = FALSE,
   log_volume = FALSE
 ) {
-  sensitivity <- methods::slot(object, "sensitivity")
+  sensitivity <- object@sensitivity
   batch_ids <- Xeva::batchInfo(object)
 
   metric_cols <- switch(
@@ -329,7 +329,7 @@ set_batch_metric <- function(
     )
   }
 
-  methods::slot(object, "sensitivity") <- sensitivity
+  object@sensitivity <- sensitivity
   object
 }
 
@@ -579,63 +579,60 @@ export_xeva_tsv <- function(pdxe, output_dir) {
     component = "annotation",
     relative_path = "annotation.tsv",
     description = "XevaSet annotation metadata, including creation info.",
-    df = annotation_to_df(methods::slot(pdxe, "annotation"))
+    df = annotation_to_df(pdxe@annotation)
   )
   export_component(
     component = "model",
     relative_path = "model.tsv",
-    description = "Model metadata from slot(pdxe, 'model').",
-    df = methods::slot(pdxe, "model")
+    description = "Model metadata from pdxe@model.",
+    df = pdxe@model
   )
   export_component(
     component = "drug",
     relative_path = "drug.tsv",
-    description = "Treatment metadata from slot(pdxe, 'drug').",
-    df = methods::slot(pdxe, "drug")
+    description = "Treatment metadata from pdxe@drug.",
+    df = pdxe@drug
   )
   export_component(
     component = "sensitivity_model",
     relative_path = "sensitivity_model.tsv",
-    description = "Model-level response summaries from slot(pdxe, 'sensitivity')$model.",
-    df = methods::slot(pdxe, "sensitivity")$model
+    description = "Model-level response summaries from pdxe@sensitivity$model.",
+    df = pdxe@sensitivity$model
   )
   export_component(
     component = "sensitivity_batch",
     relative_path = "sensitivity_batch.tsv",
-    description = "Batch-level response summaries from slot(pdxe, 'sensitivity')$batch.",
-    df = methods::slot(pdxe, "sensitivity")$batch
+    description = "Batch-level response summaries from pdxe@sensitivity$batch.",
+    df = pdxe@sensitivity$batch
   )
   export_component(
     component = "batch_definitions",
     relative_path = "batch_definitions.tsv",
-    description = "Treatment-control batch definitions from slot(pdxe, 'expDesign').",
-    df = batch_definitions_to_df(methods::slot(pdxe, "expDesign"))
+    description = "Treatment-control batch definitions from pdxe@expDesign.",
+    df = batch_definitions_to_df(pdxe@expDesign)
   )
   export_component(
     component = "mod_to_biobase_map",
     relative_path = "mod_to_biobase_map.tsv",
     description = "Mapping between Xeva molecular profile identifiers and Biobase annotations.",
-    df = methods::slot(pdxe, "modToBiobaseMap")
+    df = pdxe@modToBiobaseMap
   )
 
-  experiment_exports <- build_experiment_exports(methods::slot(
-    pdxe,
-    "experiment"
-  ))
+  experiment_exports <- build_experiment_exports(pdxe@experiment)
   export_component(
     component = "experiment_model_metadata",
     relative_path = "experiment_model_metadata.tsv",
-    description = "Flattened per-model metadata from slot(pdxe, 'experiment').",
+    description = "Flattened per-model metadata from pdxe@experiment.",
     df = experiment_exports$metadata
   )
   export_component(
     component = "experiment_measurements",
     relative_path = "experiment_measurements.tsv",
-    description = "Long-form tumor-volume time-course data from slot(pdxe, 'experiment').",
+    description = "Long-form tumor-volume time-course data from pdxe@experiment.",
     df = experiment_exports$measurements
   )
 
-  molecular_profiles <- methods::slot(pdxe, "molecularProfiles")
+  molecular_profiles <- pdxe@molecularProfiles
   for (profile_name in names(molecular_profiles)) {
     profile <- molecular_profiles[[profile_name]]
 
@@ -751,7 +748,7 @@ required_batch_cols <- c(
 )
 missing_batch_cols <- setdiff(
   required_batch_cols,
-  colnames(methods::slot(pdxe, "sensitivity")$batch)
+  colnames(pdxe@sensitivity$batch)
 )
 if (length(missing_batch_cols) > 0) {
   stop(

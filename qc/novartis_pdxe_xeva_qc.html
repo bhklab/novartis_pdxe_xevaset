@@ -10,7 +10,7 @@
 
 
 
-<meta name="date" content="2026-03-30" />
+<meta name="date" content="2026-04-15" />
 
 <title>Exploring the Novartis PDXE XevaSet with Xeva</title>
 
@@ -351,7 +351,7 @@ display: none;
 
 <h1 class="title toc-ignore">Exploring the Novartis PDXE XevaSet with
 Xeva</h1>
-<h4 class="date">2026-03-30</h4>
+<h4 class="date">2026-04-15</h4>
 
 </div>
 
@@ -425,7 +425,7 @@ pdxe &lt;- readRDS(xeva_path)
 pdxe</code></pre>
 <pre><code>## XevaSet
 ## name: PDXE xevaSet
-## Creation date: Mon Mar 30 14:21:33 2026
+## Creation date: Mon Mar 30 15:34:31 2026
 ## Number of models: 4706
 ## Number of drugs: 62
 ## Moleculer dataset: RNASeq, cnv, mutation</code></pre>
@@ -436,7 +436,7 @@ can support both simple data access and higher-level analyses such as
 response classification and biomarker discovery.</p>
 <pre class="r"><code>model_df &lt;- modelInfo(pdxe)
 batch_ids &lt;- batchInfo(pdxe)
-treatment_df &lt;- methods::slot(pdxe, &quot;drug&quot;) |&gt;
+treatment_df &lt;- pdxe@drug |&gt;
   as_tibble()
 
 overview_tbl &lt;- tibble(
@@ -503,8 +503,8 @@ Ductal Carcinoma.</p>
     &quot;modelInfo(pdxe)&quot;,
     &quot;batchInfo(pdxe)&quot;,
     &quot;getExperiment(pdxe, model.id = ...)&quot;,
-    &quot;slot(pdxe, &#39;sensitivity&#39;)$model&quot;,
-    &quot;slot(pdxe, &#39;sensitivity&#39;)$batch&quot;,
+    &quot;pdxe@sensitivity$model&quot;,
+    &quot;pdxe@sensitivity$batch&quot;,
     &quot;getMolecularProfiles(pdxe, data.type = ...)&quot;
   )
 )
@@ -536,9 +536,8 @@ kable(contents_tbl)</code></pre>
 </tr>
 <tr class="even">
 <td align="left">Model-level response summaries</td>
-<td align="left">slot(pdxe, ‘sensitivity’)<span class="math inline">\(model             |
-|Batch-level response summaries |slot(pdxe,
-&#39;sensitivity&#39;)\)</span>batch</td>
+<td align="left"><a href="mailto:pdxe@sensitivity" class="email">pdxe@sensitivity</a><span class="math inline">\(model                      |
+|Batch-level response summaries |pdxe@sensitivity\)</span>batch</td>
 </tr>
 <tr class="odd">
 <td align="left">Molecular profiles</td>
@@ -1278,7 +1277,7 @@ summaries. These can be used directly, or recomputed with
 <code>summarizeResponse()</code> and related functions when needed.</p>
 <div id="model-level-response-summaries" class="section level3">
 <h3>Model-level response summaries</h3>
-<pre class="r"><code>model_metrics &lt;- methods::slot(pdxe, &quot;sensitivity&quot;)$model
+<pre class="r"><code>model_metrics &lt;- pdxe@sensitivity$model
 
 model_metric_summary &lt;- tibble(
   metric = colnames(model_metrics)[-1],
@@ -1336,7 +1335,7 @@ kable(model_metric_summary)</code></pre>
 </div>
 <div id="batch-level-response-summaries" class="section level3">
 <h3>Batch-level response summaries</h3>
-<pre class="r"><code>batch_metrics &lt;- methods::slot(pdxe, &quot;sensitivity&quot;)$batch
+<pre class="r"><code>batch_metrics &lt;- pdxe@sensitivity$batch
 
 batch_metric_summary &lt;- tibble(
   metric = colnames(batch_metrics)[-1],

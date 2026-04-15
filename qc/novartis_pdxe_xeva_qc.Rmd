@@ -50,7 +50,7 @@ The `XevaSet` bundles together experimental design, tumor growth measurements, r
 ```{r dataset-overview}
 model_df <- modelInfo(pdxe)
 batch_ids <- batchInfo(pdxe)
-treatment_df <- methods::slot(pdxe, "drug") |>
+treatment_df <- pdxe@drug |>
   as_tibble()
 
 overview_tbl <- tibble(
@@ -87,8 +87,8 @@ contents_tbl <- tibble(
     "modelInfo(pdxe)",
     "batchInfo(pdxe)",
     "getExperiment(pdxe, model.id = ...)",
-    "slot(pdxe, 'sensitivity')$model",
-    "slot(pdxe, 'sensitivity')$batch",
+    "pdxe@sensitivity$model",
+    "pdxe@sensitivity$batch",
     "getMolecularProfiles(pdxe, data.type = ...)"
   )
 )
@@ -307,7 +307,7 @@ The curated object already contains a set of precomputed response summaries. The
 ### Model-level response summaries
 
 ```{r model-response-availability}
-model_metrics <- methods::slot(pdxe, "sensitivity")$model
+model_metrics <- pdxe@sensitivity$model
 
 model_metric_summary <- tibble(
   metric = colnames(model_metrics)[-1],
@@ -321,7 +321,7 @@ kable(model_metric_summary)
 ### Batch-level response summaries
 
 ```{r batch-response-availability}
-batch_metrics <- methods::slot(pdxe, "sensitivity")$batch
+batch_metrics <- pdxe@sensitivity$batch
 
 batch_metric_summary <- tibble(
   metric = colnames(batch_metrics)[-1],
