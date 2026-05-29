@@ -34,3 +34,9 @@ metadata:
 
 treatmentResponse:
   control_drug: untreated
+
+annotationgx:
+  gencode:
+    species: homo_sapiens
+    batch_size: 1000
+    request_timeout_seconds: 120

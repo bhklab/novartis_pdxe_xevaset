@@ -29,6 +29,11 @@ mutation_calls <- mut_df |>
 
 sample_ids <- sort(unique(mut_df$sample))
 gene_ids <- sort(unique(mutation_calls$gene))
+gene_metadata <- mut_df |>
+  filter(gene %in% gene_ids) |>
+  group_by(gene) |>
+  summarise(entrez = first_non_missing_value(entrez), .groups = "drop") |>
+  as.data.frame(stringsAsFactors = FALSE)
 mutation_mat <- matrix(
   0,
   nrow = length(gene_ids),
@@ -46,9 +51,11 @@ storage.mode(mutation_mat) <- "double"
 
 row_df <- data.frame(
   gene = gene_ids,
-  stringsAsFactors = FALSE,
-  row.names = gene_ids
+  stringsAsFactors = FALSE
 )
+row_df <- row_df |>
+  left_join(gene_metadata, by = "gene")
+rownames(row_df) <- row_df$gene
 col_df <- sample_annotation_from_ids(sample_ids)
 
 se <- SummarizedExperiment::SummarizedExperiment(

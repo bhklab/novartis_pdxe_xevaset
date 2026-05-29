@@ -10,7 +10,7 @@
 
 
 
-<meta name="date" content="2026-04-15" />
+<meta name="date" content="2026-05-29" />
 
 <title>Exploring the Novartis PDXE XevaSet with Xeva</title>
 
@@ -351,7 +351,7 @@ display: none;
 
 <h1 class="title toc-ignore">Exploring the Novartis PDXE XevaSet with
 Xeva</h1>
-<h4 class="date">2026-04-15</h4>
+<h4 class="date">2026-05-29</h4>
 
 </div>
 
@@ -425,7 +425,7 @@ pdxe &lt;- readRDS(xeva_path)
 pdxe</code></pre>
 <pre><code>## XevaSet
 ## name: PDXE xevaSet
-## Creation date: Mon Mar 30 15:34:31 2026
+## Creation date: Fri May 29 11:52:16 2026
 ## Number of models: 4706
 ## Number of drugs: 62
 ## Moleculer dataset: RNASeq, cnv, mutation</code></pre>
@@ -828,17 +828,30 @@ assay_tbl &lt;- tibble(
     paste(colnames(pData(rna)), collapse = &quot;, &quot;),
     paste(colnames(pData(cnv)), collapse = &quot;, &quot;),
     paste(colnames(pData(mut)), collapse = &quot;, &quot;)
+  ),
+  feature_metadata = c(
+    paste(colnames(fData(rna)), collapse = &quot;, &quot;),
+    paste(colnames(fData(cnv)), collapse = &quot;, &quot;),
+    paste(colnames(fData(mut)), collapse = &quot;, &quot;)
   )
 )
 
 kable(assay_tbl)</code></pre>
 <table>
+<colgroup>
+<col width="2%" />
+<col width="2%" />
+<col width="2%" />
+<col width="8%" />
+<col width="84%" />
+</colgroup>
 <thead>
 <tr class="header">
 <th align="left">modality</th>
 <th align="right">features</th>
 <th align="right">samples</th>
 <th align="left">patient_metadata</th>
+<th align="left">feature_metadata</th>
 </tr>
 </thead>
 <tbody>
@@ -847,24 +860,173 @@ kable(assay_tbl)</code></pre>
 <td align="right">22665</td>
 <td align="right">399</td>
 <td align="left">sampleid, patient.id, biobase.id</td>
+<td align="left">gene, gencode.query.type, gencode.query.value,
+gencode.mapped, gencode.gene.id, gencode.gene.version, gencode.symbol,
+gencode.description, gencode.biotype, gencode.seq.region, gencode.start,
+gencode.end, gencode.strand, gencode.assembly,
+gencode.canonical.transcript, gencode.object.type, gencode.species,
+gencode.release</td>
 </tr>
 <tr class="even">
 <td align="left">cnv</td>
 <td align="right">23854</td>
 <td align="right">375</td>
 <td align="left">sampleid, patient.id, biobase.id</td>
+<td align="left">feature, gencode.query.type, gencode.query.value,
+gencode.mapped, gencode.gene.id, gencode.gene.version, gencode.symbol,
+gencode.description, gencode.biotype, gencode.seq.region, gencode.start,
+gencode.end, gencode.strand, gencode.assembly,
+gencode.canonical.transcript, gencode.object.type, gencode.species,
+gencode.release</td>
 </tr>
 <tr class="odd">
 <td align="left">mutation</td>
 <td align="right">15231</td>
 <td align="right">399</td>
 <td align="left">sampleid, patient.id, biobase.id</td>
+<td align="left">gene, entrez, gencode.query.type, gencode.query.value,
+gencode.mapped, gencode.gene.id, gencode.gene.version, gencode.symbol,
+gencode.description, gencode.biotype, gencode.seq.region, gencode.start,
+gencode.end, gencode.strand, gencode.assembly,
+gencode.canonical.transcript, gencode.object.type, gencode.species,
+gencode.release</td>
 </tr>
 </tbody>
 </table>
 <p>These assays are stored as <code>ExpressionSet</code> objects. The
 accompanying sample metadata links each molecular profile back to
 patient, model, tissue, and response annotations where available.</p>
+<p>Gene-level molecular features are annotated with metadata from the
+current GENCODE release tracked by AnnotationGx. The original feature
+identifiers are retained, and the <code>gencode.*</code> columns provide
+the current gene identifier, symbol, biotype, genomic location, and
+release metadata.</p>
+<pre class="r"><code>profile_objects &lt;- list(RNASeq = rna, cnv = cnv, mutation = mut)
+
+feature_annotation_tbl &lt;- lapply(
+  names(profile_objects),
+  function(profile_name) {
+    feature_data &lt;- fData(profile_objects[[profile_name]]) |&gt;
+      as_tibble()
+    mapped &lt;- feature_data$gencode.mapped
+    if (!is.logical(mapped)) {
+      mapped &lt;- as.character(mapped) == &quot;TRUE&quot;
+    }
+
+    tibble(
+      modality = profile_name,
+      features = nrow(feature_data),
+      mapped_features = sum(mapped, na.rm = TRUE),
+      unmapped_features = sum(!mapped, na.rm = TRUE),
+      mapped_fraction = mapped_features / features,
+      gencode_release = paste(
+        sort(unique(na.omit(feature_data$gencode.release))),
+        collapse = &quot;, &quot;
+      ),
+      example_gencode_symbol = dplyr::first(
+        na.omit(feature_data$gencode.symbol)
+      )
+    )
+  }
+) |&gt;
+  bind_rows()
+
+kable(feature_annotation_tbl)</code></pre>
+<table>
+<colgroup>
+<col width="8%" />
+<col width="8%" />
+<col width="14%" />
+<col width="16%" />
+<col width="14%" />
+<col width="14%" />
+<col width="21%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">modality</th>
+<th align="right">features</th>
+<th align="right">mapped_features</th>
+<th align="right">unmapped_features</th>
+<th align="right">mapped_fraction</th>
+<th align="left">gencode_release</th>
+<th align="left">example_gencode_symbol</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">RNASeq</td>
+<td align="right">22665</td>
+<td align="right">19237</td>
+<td align="right">3428</td>
+<td align="right">0.8487536</td>
+<td align="left">115</td>
+<td align="left">A1BG</td>
+</tr>
+<tr class="even">
+<td align="left">cnv</td>
+<td align="right">23854</td>
+<td align="right">20280</td>
+<td align="right">3574</td>
+<td align="right">0.8501719</td>
+<td align="left">115</td>
+<td align="left">A1BG</td>
+</tr>
+<tr class="odd">
+<td align="left">mutation</td>
+<td align="right">15231</td>
+<td align="right">13673</td>
+<td align="right">1558</td>
+<td align="right">0.8977086</td>
+<td align="left">115</td>
+<td align="left">A1BG</td>
+</tr>
+</tbody>
+</table>
+<pre class="r"><code>unmapped_genes_path &lt;- file.path(&quot;results&quot;, &quot;unmapped_genes.tsv&quot;)
+if (file.exists(unmapped_genes_path)) {
+  unmapped_genes &lt;- read.delim(
+    unmapped_genes_path,
+    check.names = FALSE,
+    stringsAsFactors = FALSE
+  )
+  if (nrow(unmapped_genes) &gt; 0) {
+    unmapped_genes |&gt;
+      count(profile, feature_column, name = &quot;unmapped_features&quot;) |&gt;
+      arrange(desc(unmapped_features)) |&gt;
+      kable()
+  } else {
+    kable(tibble(status = &quot;All gene-level molecular features are mapped.&quot;))
+  }
+} else {
+  kable(tibble(status = &quot;Unmapped gene report has not been generated yet.&quot;))
+}</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">profile</th>
+<th align="left">feature_column</th>
+<th align="right">unmapped_features</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">cnv</td>
+<td align="left">feature</td>
+<td align="right">3574</td>
+</tr>
+<tr class="even">
+<td align="left">RNASeq</td>
+<td align="left">gene</td>
+<td align="right">3428</td>
+</tr>
+<tr class="odd">
+<td align="left">mutation</td>
+<td align="left">gene</td>
+<td align="right">1558</td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
 <div id="the-model-and-treatment-landscape" class="section level2">
@@ -1937,7 +2099,7 @@ the same object.</p>
 <pre class="r"><code>sessionInfo()</code></pre>
 <pre><code>## R version 4.5.3 (2026-03-11)
 ## Platform: aarch64-apple-darwin20.0.0
-## Running under: macOS Tahoe 26.4
+## Running under: macOS Tahoe 26.5
 ## 
 ## Matrix products: default
 ## BLAS/LAPACK: /Users/michael/Projects/BHKLab/ARPA-H/novartis_pdxe_xevaset/.pixi/envs/default/lib/libopenblas.0.dylib;  LAPACK version 3.12.0
@@ -1958,16 +2120,16 @@ the same object.</p>
 ## [10] Xeva_1.26.0        
 ## 
 ## loaded via a namespace (and not attached):
-##   [1] bitops_1.0-9                rlang_1.1.7                
-##   [3] magrittr_2.0.4              shinydashboard_0.7.3       
+##   [1] bitops_1.0-9                rlang_1.2.0                
+##   [3] magrittr_2.0.5              shinydashboard_0.7.3       
 ##   [5] clue_0.3-67                 GetoptLong_1.1.0           
 ##   [7] otel_0.2.0                  matrixStats_1.5.0          
 ##   [9] compiler_4.5.3              mgcv_1.9-4                 
 ##  [11] reshape2_1.4.5              png_0.1-9                  
-##  [13] vctrs_0.7.1                 relations_0.6-16           
+##  [13] vctrs_0.7.3                 relations_0.6-16           
 ##  [15] stringr_1.6.0               pkgconfig_2.0.3            
 ##  [17] shape_1.4.6.1               crayon_1.5.3               
-##  [19] fastmap_1.2.0               backports_1.5.0            
+##  [19] fastmap_1.2.0               backports_1.5.1            
 ##  [21] XVector_0.50.0              labeling_0.4.3             
 ##  [23] caTools_1.18.3              promises_1.5.0             
 ##  [25] rmarkdown_2.30              purrr_1.2.1                
@@ -2002,13 +2164,13 @@ the same object.</p>
 ##  [83] shinyjs_2.1.1               piano_2.26.0               
 ##  [85] S4Vectors_0.48.0            gtools_3.9.5               
 ##  [87] xtable_1.8-8                marray_1.88.0              
-##  [89] glue_1.8.0                  slam_0.1-55                
-##  [91] tools_4.5.3                 data.table_1.18.2.1        
+##  [89] glue_1.8.1                  slam_0.1-55                
+##  [91] tools_4.5.3                 data.table_1.18.4          
 ##  [93] fgsea_1.36.2                visNetwork_2.1.4           
 ##  [95] fastmatch_1.1-8             cowplot_1.2.0              
 ##  [97] grid_4.5.3                  colorspace_2.1-2           
 ##  [99] BBmisc_1.13.1               nlme_3.1-168               
-## [101] Rmisc_1.5.1                 cli_3.6.5                  
+## [101] Rmisc_1.5.1                 cli_3.6.6                  
 ## [103] PharmacoGx_3.14.0           S4Arrays_1.10.1            
 ## [105] ComplexHeatmap_2.26.1       gtable_0.3.6               
 ## [107] sass_0.4.10                 digest_0.6.39              

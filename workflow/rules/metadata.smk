@@ -109,9 +109,9 @@ rule build_experimentDesign:
 rule build_modToBiobaseMap:
     input:
         modelInfo=rules.annotate_sampleMetadata.output.modelInfo,
-        rnaseq=procdata / "rnaseq" / "RNASeq_SE.rds",
-        cnv=procdata / "cnv" / "CNV_SE.rds",
-        mutation=procdata / "mutation" / "Mutation_SE.rds",
+        rnaseq=procdata / "gene_annotation" / "RNASeq_SE.rds",
+        cnv=procdata / "gene_annotation" / "CNV_SE.rds",
+        mutation=procdata / "gene_annotation" / "Mutation_SE.rds",
     output:
         modToBiobaseMap=procdata
         / "metadata"

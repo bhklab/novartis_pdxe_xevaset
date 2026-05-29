@@ -5,6 +5,7 @@ This documents notable decisions made during curation.
 - `5FFU` is normalized to `5FU`. This appears to be a typo, not a separate treatment.
 - Treatment metadata is filtered to only drugs represented in both model and experiment data. This drops orphan entries such as `abraxane + gemcitabine`.
 - Treatment metadata is enriched with `AnnotationGx` where possible, including PubChem identifiers and titles, UniChem cross-references, ChEMBL mechanisms, and ChEMBL target names.
+- Molecular feature metadata is enriched against the current GENCODE release after RNA-seq, CNV, and mutation `SummarizedExperiment` objects are created. Features that do not map are retained in the assays and written to `results/unmapped_genes.tsv`. The pipeline uses batched current-GENCODE lookups for practical runtime and stores the release used in feature metadata.
 - `untreated` is retained as the control treatment in the XevaSet drug table.
 - `expDesign` only keeps complete batches with both control and treatment arms. Dropped incomplete batches are logged during the build.
 - Duplicate same-day timecourse measurements are aggregated before splitting. Timecourses are only split on true day resets, not repeated day values.

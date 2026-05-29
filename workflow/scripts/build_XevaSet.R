@@ -654,6 +654,25 @@ export_xeva_tsv <- function(pdxe, output_dir) {
       ),
       rownames_col = "feature_rowname"
     )
+
+    export_component(
+      component = paste0("molecular_profile_features:", profile_name),
+      relative_path = fs::path(
+        "molecular_profile_features",
+        paste0(profile_name, ".tsv")
+      ),
+      description = paste0(
+        "Feature metadata for molecular profile '",
+        profile_name,
+        "'."
+      ),
+      df = data.frame(
+        as.data.frame(Biobase::fData(profile), check.names = FALSE),
+        stringsAsFactors = FALSE,
+        check.names = FALSE
+      ),
+      rownames_col = "feature_rowname"
+    )
   }
 
   write_tsv_export(

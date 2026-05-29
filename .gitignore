@@ -5,6 +5,6 @@
 logs/
 data/procdata/
 data/rawdata/
-results/
+results/*
 scratch/
 **__pycache__/

@@ -14,6 +14,7 @@ include: "workflow/rules/metadata.smk"
 include: "workflow/rules/rnaseq.smk"
 include: "workflow/rules/cnv.smk"
 include: "workflow/rules/mutation.smk"
+include: "workflow/rules/gene_annotation.smk"
 include: "workflow/rules/treatmentResponse.smk"
 
 
@@ -21,6 +22,7 @@ rule all:
     input:
         xeva=results / "Xeva_PDXE.rds",
         xeva_tsv=results / "Xeva_PDXE_tsv",
+        unmapped_genes=results / "unmapped_genes.tsv",
     localrule: True
 
 
@@ -28,9 +30,9 @@ rule build_MultiAssayExperiment:
     input:
         sampleMetadata=rules.annotate_sampleMetadata.output.sampleMetadata,
         assays=[
-            rules.make_RNASeq_SE.output.se,
-            rules.make_CNV_SE.output.se,
-            rules.make_Mutation_SE.output.se,
+            rules.annotate_gene_metadata.output.rnaseq,
+            rules.annotate_gene_metadata.output.cnv,
+            rules.annotate_gene_metadata.output.mutation,
         ],
     output:
         mae=results / "PDXE_MultiAssayExperiment.rds",

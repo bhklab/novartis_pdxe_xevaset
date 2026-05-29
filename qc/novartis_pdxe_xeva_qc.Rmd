@@ -155,6 +155,11 @@ assay_tbl <- tibble(
     paste(colnames(pData(rna)), collapse = ", "),
     paste(colnames(pData(cnv)), collapse = ", "),
     paste(colnames(pData(mut)), collapse = ", ")
+  ),
+  feature_metadata = c(
+    paste(colnames(fData(rna)), collapse = ", "),
+    paste(colnames(fData(cnv)), collapse = ", "),
+    paste(colnames(fData(mut)), collapse = ", ")
   )
 )
 
@@ -162,6 +167,66 @@ kable(assay_tbl)
 ```
 
 These assays are stored as `ExpressionSet` objects. The accompanying sample metadata links each molecular profile back to patient, model, tissue, and response annotations where available.
+
+Gene-level molecular features are annotated with metadata from the current
+GENCODE release used by the pipeline. The original feature identifiers are
+retained, and the `gencode.*` columns provide the current gene identifier,
+symbol, biotype, genomic location, and release metadata.
+
+```{r molecular-feature-annotation}
+profile_objects <- list(RNASeq = rna, cnv = cnv, mutation = mut)
+
+feature_annotation_tbl <- lapply(
+  names(profile_objects),
+  function(profile_name) {
+    feature_data <- fData(profile_objects[[profile_name]]) |>
+      as_tibble()
+    mapped <- feature_data$gencode.mapped
+    if (!is.logical(mapped)) {
+      mapped <- as.character(mapped) == "TRUE"
+    }
+
+    tibble(
+      modality = profile_name,
+      features = nrow(feature_data),
+      mapped_features = sum(mapped, na.rm = TRUE),
+      unmapped_features = sum(!mapped, na.rm = TRUE),
+      mapped_fraction = mapped_features / features,
+      gencode_release = paste(
+        sort(unique(na.omit(feature_data$gencode.release))),
+        collapse = ", "
+      ),
+      example_gencode_symbol = dplyr::first(
+        na.omit(feature_data$gencode.symbol)
+      )
+    )
+  }
+) |>
+  bind_rows()
+
+kable(feature_annotation_tbl)
+```
+
+```{r unmapped-genes}
+unmapped_genes_path <- file.path("results", "unmapped_genes.tsv")
+if (file.exists(unmapped_genes_path)) {
+  unmapped_genes <- read.delim(
+    unmapped_genes_path,
+    check.names = FALSE,
+    stringsAsFactors = FALSE
+  )
+  if (nrow(unmapped_genes) > 0) {
+    unmapped_genes |>
+      count(profile, feature_column, name = "unmapped_features") |>
+      arrange(desc(unmapped_features)) |>
+      kable()
+  } else {
+    kable(tibble(status = "All gene-level molecular features are mapped."))
+  }
+} else {
+  kable(tibble(status = "Unmapped gene report has not been generated yet."))
+}
+```
 
 ## The model and treatment landscape
 
